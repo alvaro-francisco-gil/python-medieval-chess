@@ -22,3 +22,5 @@ data/syzygy/giveaway/*.[gs]tb[wz]
 fuzz/corpus
 
 release-v*.txt
+
+.codegpt

@@ -201,7 +201,7 @@ class PieceTestCase(unittest.TestCase):
         self.assertEqual(str(black_queen), "q")
 
     def test_hash(self):
-        pieces = {chess.Piece.from_symbol(symbol) for symbol in  "pnbrqkPNBRQK"}
+        pieces = {chess.Piece.from_symbol(symbol) for symbol in "pnbrqkPNBRQK"}
         self.assertEqual(len(pieces), 12)
         hashes = {hash(piece) for piece in pieces}
         self.assertEqual(hashes, set(range(12)))
