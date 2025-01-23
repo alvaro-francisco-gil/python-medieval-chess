@@ -18,9 +18,9 @@ import time
 import typing
 import re
 
-import chess
+import medieval_chess as medieval_chess
 
-from chess import Color
+from medieval_chess import Color
 from types import TracebackType
 from typing import Any, Callable, Coroutine, Deque, Dict, Generator, Generic, Iterable, Iterator, List, Literal, Mapping, MutableMapping, Optional, Tuple, Type, TypedDict, TypeVar, Union
 
@@ -229,17 +229,17 @@ class InfoDict(TypedDict, total=False):
     """
     Dictionary of aggregated information sent by the engine.
 
-    Commonly used keys are: ``score`` (a :class:`~chess.engine.PovScore`),
-    ``pv`` (a list of :class:`~chess.Move` objects), ``depth``,
+    Commonly used keys are: ``score`` (a :class:`~medieval_chess.engine.PovScore`),
+    ``pv`` (a list of :class:`~medieval_chess.Move` objects), ``depth``,
     ``seldepth``, ``time`` (in seconds), ``nodes``, ``nps``, ``multipv``
     (``1`` for the mainline).
 
     Others: ``tbhits``, ``currmove``, ``currmovenumber``, ``hashfull``,
     ``cpuload``, ``refutation``, ``currline``, ``ebf`` (effective branching factor),
-    ``wdl`` (a :class:`~chess.engine.PovWdl`), and ``string``.
+    ``wdl`` (a :class:`~medieval_chess.engine.PovWdl`), and ``string``.
     """
     score: PovScore
-    pv: List[chess.Move]
+    pv: List[medieval_chess.Move]
     depth: int
     seldepth: int
     time: float
@@ -247,31 +247,31 @@ class InfoDict(TypedDict, total=False):
     nps: int
     tbhits: int
     multipv: int
-    currmove: chess.Move
+    currmove: medieval_chess.Move
     currmovenumber: int
     hashfull: int
     cpuload: int
-    refutation: Dict[chess.Move, List[chess.Move]]
-    currline: Dict[int, List[chess.Move]]
+    refutation: Dict[medieval_chess.Move, List[medieval_chess.Move]]
+    currline: Dict[int, List[medieval_chess.Move]]
     ebf: float
     wdl: PovWdl
     string: str
 
 
 class PlayResult:
-    """Returned by :func:`chess.engine.Protocol.play()`."""
+    """Returned by :func:`medieval_chess.engine.Protocol.play()`."""
 
-    move: Optional[chess.Move]
+    move: Optional[medieval_chess.Move]
     """The best move according to the engine, or ``None``."""
 
-    ponder: Optional[chess.Move]
+    ponder: Optional[medieval_chess.Move]
     """The response that the engine expects after *move*, or ``None``."""
 
     info: InfoDict
     """
-    A dictionary of extra :class:`information <chess.engine.InfoDict>`
+    A dictionary of extra :class:`information <medieval_chess.engine.InfoDict>`
     sent by the engine, if selected with the *info* argument of
-    :func:`~chess.engine.Protocol.play()`.
+    :func:`~medieval_chess.engine.Protocol.play()`.
     """
 
     draw_offered: bool
@@ -281,8 +281,8 @@ class PlayResult:
     """Whether the engine resigned."""
 
     def __init__(self,
-                 move: Optional[chess.Move],
-                 ponder: Optional[chess.Move],
+                 move: Optional[medieval_chess.Move],
+                 ponder: Optional[medieval_chess.Move],
                  info: Optional[InfoDict] = None,
                  *,
                  draw_offered: bool = False,
@@ -300,7 +300,7 @@ class PlayResult:
 
 
 class Info(enum.IntFlag):
-    """Used to filter information sent by the chess engine."""
+    """Used to filter information sent by the medieval_chess engine."""
     NONE = 0
     BASIC = 1
     SCORE = 2
@@ -332,17 +332,17 @@ class Opponent:
     """The opponent's ELO rating."""
 
     is_engine: Optional[bool]
-    """Whether the opponent is a chess engine/computer program."""
+    """Whether the opponent is a medieval_chess engine/computer program."""
 
 
 class PovScore:
-    """A relative :class:`~chess.engine.Score` and the point of view."""
+    """A relative :class:`~medieval_chess.engine.Score` and the point of view."""
 
     relative: Score
-    """The relative :class:`~chess.engine.Score`."""
+    """The relative :class:`~medieval_chess.engine.Score`."""
 
     turn: Color
-    """The point of view (``chess.WHITE`` or ``chess.BLACK``)."""
+    """The point of view (``medieval_chess.WHITE`` or ``medieval_chess.BLACK``)."""
 
     def __init__(self, relative: Score, turn: Color) -> None:
         self.relative = relative
@@ -350,11 +350,11 @@ class PovScore:
 
     def white(self) -> Score:
         """Gets the score from White's point of view."""
-        return self.pov(chess.WHITE)
+        return self.pov(medieval_chess.WHITE)
 
     def black(self) -> Score:
         """Gets the score from Black's point of view."""
-        return self.pov(chess.BLACK)
+        return self.pov(medieval_chess.BLACK)
 
     def pov(self, color: Color) -> Score:
         """Gets the score from the point of view of the given *color*."""
@@ -365,7 +365,7 @@ class PovScore:
         return self.relative.is_mate()
 
     def wdl(self, *, model: WdlModel = "sf", ply: int = 30) -> PovWdl:
-        """See :func:`~chess.engine.Score.wdl()`."""
+        """See :func:`~medieval_chess.engine.Score.wdl()`."""
         return PovWdl(self.relative.wdl(model=model, ply=ply), self.turn)
 
     def __repr__(self) -> str:
@@ -382,13 +382,13 @@ class Score(abc.ABC):
     """
     Evaluation of a position.
 
-    The score can be :class:`~chess.engine.Cp` (centi-pawns),
-    :class:`~chess.engine.Mate` or :py:data:`~chess.engine.MateGiven`.
+    The score can be :class:`~medieval_chess.engine.Cp` (centi-pawns),
+    :class:`~medieval_chess.engine.Mate` or :py:data:`~medieval_chess.engine.MateGiven`.
     A positive value indicates an advantage.
 
     There is a total order defined on centi-pawn and mate scores.
 
-    >>> from chess.engine import Cp, Mate, MateGiven
+    >>> from medieval_chess.engine import Cp, Mate, MateGiven
     >>>
     >>> Mate(-0) < Mate(-1) < Cp(-50) < Cp(200) < Mate(4) < Mate(1) < MateGiven
     True
@@ -723,27 +723,27 @@ MateGiven = MateGivenType()
 @dataclasses.dataclass
 class PovWdl:
     """
-    Relative :class:`win/draw/loss statistics <chess.engine.Wdl>` and the point
+    Relative :class:`win/draw/loss statistics <medieval_chess.engine.Wdl>` and the point
     of view.
     """
 
     relative: Wdl
-    """The relative :class:`~chess.engine.Wdl`."""
+    """The relative :class:`~medieval_chess.engine.Wdl`."""
 
     turn: Color
-    """The point of view (``chess.WHITE`` or ``chess.BLACK``)."""
+    """The point of view (``medieval_chess.WHITE`` or ``medieval_chess.BLACK``)."""
 
     def white(self) -> Wdl:
-        """Gets the :class:`~chess.engine.Wdl` from White's point of view."""
-        return self.pov(chess.WHITE)
+        """Gets the :class:`~medieval_chess.engine.Wdl` from White's point of view."""
+        return self.pov(medieval_chess.WHITE)
 
     def black(self) -> Wdl:
-        """Gets the :class:`~chess.engine.Wdl` from Black's point of view."""
-        return self.pov(chess.BLACK)
+        """Gets the :class:`~medieval_chess.engine.Wdl` from Black's point of view."""
+        return self.pov(medieval_chess.BLACK)
 
     def pov(self, color: Color) -> Wdl:
         """
-        Gets the :class:`~chess.engine.Wdl` from the point of view of the given
+        Gets the :class:`~medieval_chess.engine.Wdl` from the point of view of the given
         *color*.
         """
         return self.relative if self.turn == color else -self.relative
@@ -850,7 +850,7 @@ class MockTransport(asyncio.SubprocessTransport, asyncio.WriteTransport):
 
 
 class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
-    """Protocol for communicating with a chess engine process."""
+    """Protocol for communicating with a medieval_chess engine process."""
 
     id: Dict[str, str]
     """
@@ -1000,9 +1000,9 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         Configures global engine options.
 
         :param options: A dictionary of engine options where the keys are
-            names of :data:`~chess.engine.Protocol.options`. Do not set options
+            names of :data:`~medieval_chess.engine.Protocol.options`. Do not set options
             that are managed automatically
-            (:func:`chess.engine.Option.is_managed()`).
+            (:func:`medieval_chess.engine.Option.is_managed()`).
         """
 
     @abc.abstractmethod
@@ -1011,20 +1011,20 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         Sends the engine information about its opponent. The information will
         be sent after a new game is announced and before the first move. This
         method should be called before the first move of a game--i.e., the
-        first call to :func:`chess.engine.Protocol.play()`.
+        first call to :func:`medieval_chess.engine.Protocol.play()`.
 
-        :param opponent: Optional. An instance of :class:`chess.engine.Opponent` that has the opponent's information.
+        :param opponent: Optional. An instance of :class:`medieval_chess.engine.Opponent` that has the opponent's information.
         :param engine_rating: Optional. This engine's own rating. Only used by XBoard engines.
         """
 
     @abc.abstractmethod
-    async def play(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
+    async def play(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
         """
         Plays a position.
 
         :param board: The position. The entire move stack will be sent to the
             engine.
-        :param limit: An instance of :class:`chess.engine.Limit` that
+        :param limit: An instance of :class:`medieval_chess.engine.Limit` that
             determines when to stop thinking.
         :param game: Optional. An arbitrary object that identifies the game.
             Will automatically inform the engine if the object is not equal
@@ -1043,27 +1043,27 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         :param options: Optional. A dictionary of engine options for the
             analysis. The previous configuration will be restored after the
             analysis is complete. You can permanently apply a configuration
-            with :func:`~chess.engine.Protocol.configure()`.
+            with :func:`~medieval_chess.engine.Protocol.configure()`.
         :param opponent: Optional. Information about a new opponent. Information
             about the original opponent will be restored once the move is
             complete. New opponent information can be made permanent with
-            :func:`~chess.engine.Protocol.send_opponent_information()`.
+            :func:`~medieval_chess.engine.Protocol.send_opponent_information()`.
         """
 
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+    async def analyse(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+    async def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]: ...
-    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]:
+    async def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]: ...
+    async def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]:
         """
         Analyses a position and returns a dictionary of
-        :class:`information <chess.engine.InfoDict>`.
+        :class:`information <medieval_chess.engine.InfoDict>`.
 
         :param board: The position to analyse. The entire move stack will be
             sent to the engine.
-        :param limit: An instance of :class:`chess.engine.Limit` that
+        :param limit: An instance of :class:`medieval_chess.engine.Limit` that
             determines when to stop the analysis.
         :param multipv: Optional. Analyse multiple root moves. Will return
             a list of at most *multipv* dictionaries rather than just a single
@@ -1081,7 +1081,7 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         :param options: Optional. A dictionary of engine options for the
             analysis. The previous configuration will be restored after the
             analysis is complete. You can permanently apply a configuration
-            with :func:`~chess.engine.Protocol.configure()`.
+            with :func:`~medieval_chess.engine.Protocol.configure()`.
         """
         analysis = await self.analysis(board, limit, multipv=multipv, game=game, info=info, root_moves=root_moves, options=options)
 
@@ -1091,13 +1091,13 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         return analysis.info if multipv is None else analysis.multipv
 
     @abc.abstractmethod
-    async def analysis(self, board: chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
+    async def analysis(self, board: medieval_chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
         """
         Starts analysing a position.
 
         :param board: The position to analyse. The entire move stack will be
             sent to the engine.
-        :param limit: Optional. An instance of :class:`chess.engine.Limit`
+        :param limit: Optional. An instance of :class:`medieval_chess.engine.Limit`
             that determines when to stop the analysis. Analysis is infinite
             by default.
         :param multipv: Optional. Analyse multiple root moves.
@@ -1114,15 +1114,15 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         :param options: Optional. A dictionary of engine options for the
             analysis. The previous configuration will be restored after the
             analysis is complete. You can permanently apply a configuration
-            with :func:`~chess.engine.Protocol.configure()`.
+            with :func:`~medieval_chess.engine.Protocol.configure()`.
 
-        Returns :class:`~chess.engine.AnalysisResult`, a handle that allows
+        Returns :class:`~medieval_chess.engine.AnalysisResult`, a handle that allows
         asynchronously iterating over the information sent by the engine
         and stopping the analysis at any time.
         """
 
     @abc.abstractmethod
-    async def send_game_result(self, board: chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
+    async def send_game_result(self, board: medieval_chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
         """
         Sends the engine the result of the game.
 
@@ -1287,10 +1287,10 @@ class UciProtocol(Protocol):
         self.config: UciOptionMap[ConfigValue] = UciOptionMap()
         self.target_config: UciOptionMap[ConfigValue] = UciOptionMap()
         self.id = {}
-        self.board = chess.Board()
+        self.board = medieval_chess.Board()
         self.game: object = None
         self.first_game = True
-        self.may_ponderhit: Optional[chess.Board] = None
+        self.may_ponderhit: Optional[medieval_chess.Board] = None
         self.ponderhit = False
 
     @property
@@ -1468,12 +1468,12 @@ class UciProtocol(Protocol):
     async def send_opponent_information(self, *, opponent: Optional[Opponent] = None, engine_rating: Optional[int] = None) -> None:
         return await self.configure(self._opponent_configuration(opponent=opponent))
 
-    def _position(self, board: chess.Board) -> None:
+    def _position(self, board: medieval_chess.Board) -> None:
         # Select UCI_Variant and UCI_Chess960.
         uci_variant = type(board).uci_variant
         if "UCI_Variant" in self.options:
             self._setoption("UCI_Variant", uci_variant)
-        elif uci_variant != "chess":
+        elif uci_variant != "medieval_chess":
             raise EngineError("engine does not support UCI_Variant")
 
         if "UCI_Chess960" in self.options:
@@ -1486,7 +1486,7 @@ class UciProtocol(Protocol):
         safe_history = all(board.move_stack)
         root = board.root() if safe_history else board
         fen = root.fen(shredder=board.chess960, en_passant="fen")
-        if uci_variant == "chess" and fen == chess.STARTING_FEN:
+        if uci_variant == "medieval_chess" and fen == medieval_chess.STARTING_FEN:
             builder.append("startpos")
         else:
             builder.append("fen")
@@ -1502,7 +1502,7 @@ class UciProtocol(Protocol):
         self.send_line(" ".join(builder))
         self.board = board.copy(stack=False)
 
-    def _go(self, limit: Limit, *, root_moves: Optional[Iterable[chess.Move]] = None, ponder: bool = False, infinite: bool = False) -> None:
+    def _go(self, limit: Limit, *, root_moves: Optional[Iterable[medieval_chess.Move]] = None, ponder: bool = False, infinite: bool = False) -> None:
         builder = ["go"]
         if ponder:
             builder.append("ponder")
@@ -1544,7 +1544,7 @@ class UciProtocol(Protocol):
                 builder.append("0000")
         self.send_line(" ".join(builder))
 
-    async def play(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
+    async def play(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
         new_options: Dict[str, ConfigValue] = {}
         for name, value in options.items():
             new_options[name] = value
@@ -1565,7 +1565,7 @@ class UciProtocol(Protocol):
             @override
             def start(self) -> None:
                 self.info: InfoDict = {}
-                self.pondering: Optional[chess.Board] = None
+                self.pondering: Optional[medieval_chess.Board] = None
                 self.sent_isready = False
                 self.start_time = time.perf_counter()
 
@@ -1632,11 +1632,11 @@ class UciProtocol(Protocol):
                         ponder_limit = copy.copy(limit)
                         if ponder_limit.white_clock is not None:
                             ponder_limit.white_clock += (ponder_limit.white_inc or 0.0)
-                            if self.pondering.turn == chess.WHITE:
+                            if self.pondering.turn == medieval_chess.WHITE:
                                 ponder_limit.white_clock -= time_used
                         if ponder_limit.black_clock is not None:
                             ponder_limit.black_clock += (ponder_limit.black_inc or 0.0)
-                            if self.pondering.turn == chess.BLACK:
+                            if self.pondering.turn == medieval_chess.BLACK:
                                 ponder_limit.black_clock -= time_used
                         if ponder_limit.remaining_moves:
                             ponder_limit.remaining_moves -= 1
@@ -1666,7 +1666,7 @@ class UciProtocol(Protocol):
 
         return await self.communicate(UciPlayCommand)
 
-    async def analysis(self, board: chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
+    async def analysis(self, board: medieval_chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
         class UciAnalysisCommand(BaseCommand[AnalysisResult]):
             def __init__(self, engine: UciProtocol):
                 super().__init__(engine)
@@ -1737,7 +1737,7 @@ class UciProtocol(Protocol):
 
         return await self.communicate(UciAnalysisCommand)
 
-    async def send_game_result(self, board: chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
+    async def send_game_result(self, board: medieval_chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
         pass
 
     async def quit(self) -> None:
@@ -1747,9 +1747,9 @@ class UciProtocol(Protocol):
 
 UCI_REGEX = re.compile(r"^[a-h][1-8][a-h][1-8][pnbrqk]?|[PNBRQK]@[a-h][1-8]|0000\Z")
 
-def _create_variation_line(root_board: chess.Board, line: str) -> tuple[list[chess.Move], str]:
+def _create_variation_line(root_board: medieval_chess.Board, line: str) -> tuple[list[medieval_chess.Move], str]:
     board = root_board.copy(stack=False)
-    currline: list[chess.Move] = []
+    currline: list[medieval_chess.Move] = []
     while True:
         next_move, remaining_line_after_move = _next_token(line)
         if UCI_REGEX.match(next_move):
@@ -1759,7 +1759,7 @@ def _create_variation_line(root_board: chess.Board, line: str) -> tuple[list[che
             return currline, line
 
 
-def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL) -> InfoDict:
+def _parse_uci_info(arg: str, root_board: medieval_chess.Board, selector: Info = INFO_ALL) -> InfoDict:
     info: InfoDict = {}
     if not selector:
         return info
@@ -1809,7 +1809,7 @@ def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL
         elif parameter == "currmove":
             try:
                 current_move, remaining_line = _next_token(remaining_line)
-                info["currmove"] = chess.Move.from_uci(current_move)
+                info["currmove"] = medieval_chess.Move.from_uci(current_move)
             except (ValueError, IndexError):
                 LOGGER.error("Exception parsing currmove from info: %r", arg)
         elif parameter == "currline" and selector & INFO_CURRLINE:
@@ -1853,7 +1853,7 @@ def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL
 
     return info
 
-def _parse_uci_bestmove(board: chess.Board, args: str) -> BestMove:
+def _parse_uci_bestmove(board: medieval_chess.Board, args: str) -> BestMove:
     tokens = args.split()
 
     move = None
@@ -1956,7 +1956,7 @@ class XBoardProtocol(Protocol):
         }
         self.config: Dict[str, ConfigValue] = {}
         self.target_config: Dict[str, ConfigValue] = {}
-        self.board = chess.Board()
+        self.board = medieval_chess.Board()
         self.game: object = None
         self.clock_id: object = None
         self.first_game = True
@@ -2072,7 +2072,7 @@ class XBoardProtocol(Protocol):
 
         self.send_line(f"variant {variant}")
 
-    def _new(self, board: chess.Board, game: object, options: ConfigMapping, opponent: Optional[Opponent] = None) -> None:
+    def _new(self, board: medieval_chess.Board, game: object, options: ConfigMapping, opponent: Optional[Opponent] = None) -> None:
         self._configure(options)
         self._configure(self._opponent_configuration(opponent=opponent))
 
@@ -2110,7 +2110,7 @@ class XBoardProtocol(Protocol):
             self.send_line("force")
 
             fen = root.fen(shredder=board.chess960, en_passant="fen")
-            if variant != "normal" or fen != chess.STARTING_FEN or board.chess960:
+            if variant != "normal" or fen != medieval_chess.STARTING_FEN or board.chess960:
                 self.send_line(f"setboard {fen}")
         else:
             self.send_line("force")
@@ -2165,7 +2165,7 @@ class XBoardProtocol(Protocol):
 
         return await self.communicate(XBoardPingCommand)
 
-    async def play(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
+    async def play(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
         if root_moves is not None:
             raise EngineError("play with root_moves, but xboard supports 'include' only in analysis mode")
 
@@ -2320,7 +2320,7 @@ class XBoardProtocol(Protocol):
 
         return await self.communicate(XBoardPlayCommand)
 
-    async def analysis(self, board: chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
+    async def analysis(self, board: medieval_chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
         if multipv is not None:
             raise EngineError("xboard engine does not support multipv")
 
@@ -2335,7 +2335,7 @@ class XBoardProtocol(Protocol):
             @override
             def start(self) -> None:
                 self.stopped = False
-                self.best_move: Optional[chess.Move] = None
+                self.best_move: Optional[medieval_chess.Move] = None
                 self.analysis = AnalysisResult(stop=lambda: self.cancel())
                 self.final_pong: Optional[str] = None
 
@@ -2486,7 +2486,7 @@ class XBoardProtocol(Protocol):
     async def send_opponent_information(self, *, opponent: Optional[Opponent] = None, engine_rating: Optional[int] = None) -> None:
         return await self.configure(self._opponent_configuration(opponent=opponent, engine_rating=engine_rating))
 
-    async def send_game_result(self, board: chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
+    async def send_game_result(self, board: medieval_chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
         class XBoardGameResultCommand(BaseCommand[None]):
             def __init__(self, engine: XBoardProtocol):
                 super().__init__(engine)
@@ -2505,12 +2505,12 @@ class XBoardProtocol(Protocol):
                     result = "*"
                     ending = game_ending or ""
                 elif winner is not None or game_ending:
-                    result = "1-0" if winner == chess.WHITE else "0-1" if winner == chess.BLACK else "1/2-1/2"
+                    result = "1-0" if winner == medieval_chess.WHITE else "0-1" if winner == medieval_chess.BLACK else "1/2-1/2"
                     ending = game_ending or ""
                 elif outcome is not None and outcome.winner is not None:
                     result = outcome.result()
-                    winning_color = "White" if outcome.winner == chess.WHITE else "Black"
-                    is_checkmate = outcome.termination == chess.Termination.CHECKMATE
+                    winning_color = "White" if outcome.winner == medieval_chess.WHITE else "Black"
+                    is_checkmate = outcome.termination == medieval_chess.Termination.CHECKMATE
                     ending = f"{winning_color} {'mates' if is_checkmate else 'variant win'}"
                 elif outcome is not None:
                     result = outcome.result()
@@ -2567,7 +2567,7 @@ def _parse_xboard_option(feature: str) -> Option:
     return Option(name, type, default, min, max, var)
 
 
-def _parse_xboard_post(line: str, root_board: chess.Board, selector: Info = INFO_ALL) -> InfoDict:
+def _parse_xboard_post(line: str, root_board: medieval_chess.Board, selector: Info = INFO_ALL) -> InfoDict:
     # Format: depth score time nodes [seldepth [nps [tbhits]]] pv
     info: InfoDict = {}
 
@@ -2653,15 +2653,15 @@ def _next_token(line: str) -> tuple[str, str]:
 
 
 class BestMove:
-    """Returned by :func:`chess.engine.AnalysisResult.wait()`."""
+    """Returned by :func:`medieval_chess.engine.AnalysisResult.wait()`."""
 
-    move: Optional[chess.Move]
+    move: Optional[medieval_chess.Move]
     """The best move according to the engine, or ``None``."""
 
-    ponder: Optional[chess.Move]
+    ponder: Optional[medieval_chess.Move]
     """The response that the engine expects after *move*, or ``None``."""
 
-    def __init__(self, move: Optional[chess.Move], ponder: Optional[chess.Move]):
+    def __init__(self, move: Optional[medieval_chess.Move], ponder: Optional[medieval_chess.Move]):
         self.move = move
         self.ponder = ponder
 
@@ -2673,7 +2673,7 @@ class BestMove:
 class AnalysisResult:
     """
     Handle to ongoing engine analysis.
-    Returned by :func:`chess.engine.Protocol.analysis()`.
+    Returned by :func:`medieval_chess.engine.Protocol.analysis()`.
 
     Can be used to asynchronously iterate over information sent by the engine.
 
@@ -2745,9 +2745,9 @@ class AnalysisResult:
 
         It might be more convenient to use ``async for info in analysis: ...``.
 
-        :raises: :exc:`chess.engine.AnalysisComplete` if the analysis is
+        :raises: :exc:`medieval_chess.engine.AnalysisComplete` if the analysis is
             complete (or has been stopped) and all information has been
-            consumed. Use :func:`~chess.engine.AnalysisResult.next()` if you
+            consumed. Use :func:`~medieval_chess.engine.AnalysisResult.next()` if you
             prefer to get ``None`` instead of an exception.
         """
         if self._seen_kork:
@@ -2764,14 +2764,14 @@ class AnalysisResult:
 
     def would_block(self) -> bool:
         """
-        Checks if calling :func:`~chess.engine.AnalysisResult.get()`,
-        calling :func:`~chess.engine.AnalysisResult.next()`,
+        Checks if calling :func:`~medieval_chess.engine.AnalysisResult.get()`,
+        calling :func:`~medieval_chess.engine.AnalysisResult.next()`,
         or advancing the iterator one step would require waiting for the
         engine.
 
         These functions would return immediately if information is
         pending (queue is not
-        :func:`empty <chess.engine.AnalysisResult.empty()>`) or if the search
+        :func:`empty <medieval_chess.engine.AnalysisResult.empty()>`) or if the search
         is finished.
         """
         return not self._seen_kork and self._queue.empty()
@@ -2864,11 +2864,11 @@ async def _async(sync: Callable[[], T]) -> T:
 class SimpleEngine:
     """
     Synchronous wrapper around a transport and engine protocol pair. Provides
-    the same methods and attributes as :class:`chess.engine.Protocol`
+    the same methods and attributes as :class:`medieval_chess.engine.Protocol`
     with blocking functions instead of coroutines.
 
     You may not concurrently modify objects passed to any of the methods. Other
-    than that, :class:`~chess.engine.SimpleEngine` is thread-safe. When sending
+    than that, :class:`~medieval_chess.engine.SimpleEngine` is thread-safe. When sending
     a new command to the engine, any previous running command will be cancelled
     as soon as possible.
 
@@ -2941,7 +2941,7 @@ class SimpleEngine:
             future = asyncio.run_coroutine_threadsafe(coro, self.protocol.loop)
         return future.result()
 
-    def play(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
+    def play(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_NONE, ponder: bool = False, draw_offered: bool = False, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}, opponent: Optional[Opponent] = None) -> PlayResult:
         with self._not_shut_down():
             coro = asyncio.wait_for(
                 self.protocol.play(board, limit, game=game, info=info, ponder=ponder, draw_offered=draw_offered, root_moves=root_moves, options=options, opponent=opponent),
@@ -2950,12 +2950,12 @@ class SimpleEngine:
         return future.result()
 
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+    def analyse(self, board: medieval_chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+    def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]: ...
-    def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]:
+    def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]: ...
+    def analyse(self, board: medieval_chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]:
         with self._not_shut_down():
             coro = asyncio.wait_for(
                 self.protocol.analyse(board, limit, multipv=multipv, game=game, info=info, root_moves=root_moves, options=options),
@@ -2963,7 +2963,7 @@ class SimpleEngine:
             future = asyncio.run_coroutine_threadsafe(coro, self.protocol.loop)
         return future.result()
 
-    def analysis(self, board: chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> SimpleAnalysisResult:
+    def analysis(self, board: medieval_chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[medieval_chess.Move]] = None, options: ConfigMapping = {}) -> SimpleAnalysisResult:
         with self._not_shut_down():
             coro = asyncio.wait_for(
                 self.protocol.analysis(board, limit, multipv=multipv, game=game, info=info, root_moves=root_moves, options=options),
@@ -2971,7 +2971,7 @@ class SimpleEngine:
             future = asyncio.run_coroutine_threadsafe(coro, self.protocol.loop)
         return SimpleAnalysisResult(self, future.result())
 
-    def send_game_result(self, board: chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
+    def send_game_result(self, board: medieval_chess.Board, winner: Optional[Color] = None, game_ending: Optional[str] = None, game_complete: bool = True) -> None:
         with self._not_shut_down():
             coro = asyncio.wait_for(self.protocol.send_game_result(board, winner, game_ending, game_complete), self.timeout)
             future = asyncio.run_coroutine_threadsafe(coro, self.protocol.loop)
@@ -3017,7 +3017,7 @@ class SimpleEngine:
     def popen_uci(cls, command: Union[str, List[str]], *, timeout: Optional[float] = 10.0, debug: Optional[bool] = None, setpgrp: bool = False, **popen_args: Any) -> SimpleEngine:
         """
         Spawns and initializes a UCI engine.
-        Returns a :class:`~chess.engine.SimpleEngine` instance.
+        Returns a :class:`~medieval_chess.engine.SimpleEngine` instance.
         """
         return cls.popen(UciProtocol, command, timeout=timeout, debug=debug, setpgrp=setpgrp, **popen_args)
 
@@ -3025,7 +3025,7 @@ class SimpleEngine:
     def popen_xboard(cls, command: Union[str, List[str]], *, timeout: Optional[float] = 10.0, debug: Optional[bool] = None, setpgrp: bool = False, **popen_args: Any) -> SimpleEngine:
         """
         Spawns and initializes an XBoard engine.
-        Returns a :class:`~chess.engine.SimpleEngine` instance.
+        Returns a :class:`~medieval_chess.engine.SimpleEngine` instance.
         """
         return cls.popen(XBoardProtocol, command, timeout=timeout, debug=debug, setpgrp=setpgrp, **popen_args)
 
@@ -3042,8 +3042,8 @@ class SimpleEngine:
 
 class SimpleAnalysisResult:
     """
-    Synchronous wrapper around :class:`~chess.engine.AnalysisResult`. Returned
-    by :func:`chess.engine.SimpleEngine.analysis()`.
+    Synchronous wrapper around :class:`~medieval_chess.engine.AnalysisResult`. Returned
+    by :func:`medieval_chess.engine.SimpleEngine.analysis()`.
     """
 
     def __init__(self, simple_engine: SimpleEngine, inner: AnalysisResult) -> None:

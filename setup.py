@@ -12,7 +12,7 @@ import setuptools
 
 if sys.version_info < (3, ):
     raise ImportError(textwrap.dedent("""\
-        You are trying to install python-chess on Python 2.
+        You are trying to install medieval_chess on Python 2.
 
         The last compatible branch was 0.23.x, which was supported until the
         end of 2018. Consider upgrading to Python 3.
@@ -20,13 +20,13 @@ if sys.version_info < (3, ):
 
 if sys.version_info < (3, 8):
     raise ImportError(textwrap.dedent("""\
-        You are trying to install python-chess.
+        You are trying to install medieval_chess.
 
-        Since version 1.11.0, python-chess requires Python 3.8 or later.
-        Since version 1.0.0, python-chess requires Python 3.7 or later.
+        Since version 1.11.0, medieval_chess requires Python 3.8 or later.
+        Since version 1.0.0, medieval_chess requires Python 3.7 or later.
         """))
 
-import chess
+import medieval_chess as medieval_chess
 
 
 def read_description():
@@ -39,13 +39,13 @@ def read_description():
 
     # Link to the documentation of the specific version.
     description = description.replace(
-        "//python-chess.readthedocs.io/en/latest/",
-        "//python-chess.readthedocs.io/en/v{}/".format(chess.__version__))
+        "//medieval-medieval_chess.readthedocs.io/en/latest/",
+        "//medieval-medieval_chess.readthedocs.io/en/v{}/".format(medieval_chess.__version__))
 
     # Use documentation badge for the specific version.
     description = description.replace(
-        "//readthedocs.org/projects/python-chess/badge/?version=latest",
-        "//readthedocs.org/projects/python-chess/badge/?version=v{}".format(chess.__version__))
+        "//readthedocs.org/projects/medieval-medieval_chess/badge/?version=latest",
+        "//readthedocs.org/projects/medieval-medieval_chess/badge/?version=v{}".format(medieval_chess.__version__))
 
     # Remove doctest comments.
     description = re.sub(r"\s*# doctest:.*", "", description)
@@ -54,21 +54,21 @@ def read_description():
 
 
 setuptools.setup(
-    name="chess",
-    version=chess.__version__,
-    author=chess.__author__,
-    author_email=chess.__email__,
-    description=chess.__doc__.replace("\n", " ").strip(),
+    name="medieval-chess",
+    version=medieval_chess.__version__,
+    author=medieval_chess.__author__,
+    author_email=medieval_chess.__email__,
+    description=medieval_chess.__doc__.replace("\n", " ").strip(),
     long_description=read_description(),
     long_description_content_type="text/x-rst",
     license="GPL-3.0+",
-    keywords="chess fen epd pgn polyglot syzygy gaviota uci xboard",
-    url="https://github.com/niklasf/python-chess",
-    packages=["chess"],
+    keywords="medieval_chess fen epd pgn polyglot syzygy gaviota uci xboard",
+    url="https://github.com/alvaro-francisco-gil/medieval-medieval_chess",
+    packages=["medieval_chess"],
     test_suite="test",
     zip_safe=False,  # For mypy
     package_data={
-        "chess": ["py.typed"],
+        "medieval_chess": ["py.typed"],
     },
     python_requires=">=3.8",
     classifiers=[
@@ -89,7 +89,6 @@ setuptools.setup(
         "Typing :: Typed",
     ],
     project_urls={
-        "Documentation": "https://python-chess.readthedocs.io",
-    },
-    obsoletes=["python_chess"],
+        "Documentation": "https://medieval-medieval_chess.readthedocs.io",
+    }
 )
