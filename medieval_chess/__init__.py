@@ -516,12 +516,14 @@ def _step_attacks(square: Square, deltas: Iterable[int]) -> Bitboard:
     return _sliding_attacks(square, BB_ALL, deltas)
 
 # Add new diagonal jump attacks using existing _step_attacks function
+BB_1_DIAGONAL_JUMPER_ATTACKS: List[Bitboard] = [_step_attacks(sq, [7, 9, -7, -9]) for sq in SQUARES]
 BB_2_DIAGONAL_JUMPER_ATTACKS: List[Bitboard] = [_step_attacks(sq, [18, 14, -18, -14]) for sq in SQUARES]
 BB_3_DIAGONAL_JUMPER_ATTACKS: List[Bitboard] = [_step_attacks(sq, [27, 21, -21, -27]) for sq in SQUARES]
 BB_KNIGHT_ATTACKS: List[Bitboard] = [_step_attacks(sq, [17, 15, 10, 6, -17, -15, -10, -6]) for sq in SQUARES]
 BB_KING_ATTACKS: List[Bitboard] = [_step_attacks(sq, [9, 8, 7, 1, -9, -8, -7, -1]) for sq in SQUARES]
 BB_PAWN_ATTACKS: List[List[Bitboard]] = [[_step_attacks(sq, deltas) for sq in SQUARES] for deltas in [[-7, -9], [7, 9]]]
-
+BB_BISHOP_ATTACKS: List[Bitboard] = BB_2_DIAGONAL_JUMPER_ATTACKS
+# BB_QUEEN_ATTACKS: List[Bitboard] = [BB_1_DIAGONAL_JUMPER_ATTACKS[sq] | (BB_3_DIAGONAL_JUMPER_ATTACKS[sq] if not has_moved else ]
 
 def _edges(square: Square) -> Bitboard:
     return (((BB_RANK_1 | BB_RANK_8) & ~BB_RANKS[square_rank(square)]) |
@@ -890,10 +892,9 @@ class BaseBoard:
         else:
             attacks = 0
             if bb_square & self.bishops:
-                attacks = BB_2_DIAGONAL_JUMPER_ATTACKS[square]  # Bishops only use jumper attacks
+                attacks = BB_BISHOP_ATTACKS[square]
             if bb_square & self.queens:
-                # Queens can only move 1 square diagonally
-                attacks = _step_attacks(square, [7, 9, -7, -9])  # Single step diagonal moves
+                attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
             if bb_square & self.rooks:
                 attacks |= (BB_RANK_ATTACKS[square][BB_RANK_MASKS[square] & self.occupied] |
                         BB_FILE_ATTACKS[square][BB_FILE_MASKS[square] & self.occupied])
@@ -905,10 +906,7 @@ class BaseBoard:
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            if BB_SQUARES[from_square] & self.bishops:
-                # Special movement for bishops using diagonal jumper pattern
-                moves = BB_2_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
-            elif BB_SQUARES[from_square] & self.queens:
+            if BB_SQUARES[from_square] & self.queens:
                 # Check if the queen has moved from its initial position
                 has_moved = any(move.from_square == from_square and move.piece_type == 'Q' for move in self.move_stack)
                 if not has_moved:  # If the queen has not moved
@@ -945,18 +943,16 @@ class BaseBoard:
 
         rank_pieces = BB_RANK_MASKS[square] & occupied
         file_pieces = BB_FILE_MASKS[square] & occupied
-        diag_pieces = BB_DIAG_MASKS[square] & occupied
-
-        queens_and_rooks = self.queens | self.rooks
-        queens_and_bishops = self.queens | self.bishops
 
         attackers = (
             (BB_KING_ATTACKS[square] & self.kings) |
             (BB_KNIGHT_ATTACKS[square] & self.knights) |
-            (BB_RANK_ATTACKS[square][rank_pieces] & queens_and_rooks) |
-            (BB_FILE_ATTACKS[square][file_pieces] & queens_and_rooks) |
-            (BB_DIAG_ATTACKS[square][diag_pieces] & queens_and_bishops) |
-            (BB_PAWN_ATTACKS[not color][square] & self.pawns))
+            (BB_RANK_ATTACKS[square][rank_pieces] & self.rooks) |
+            (BB_FILE_ATTACKS[square][file_pieces] & self.rooks) |
+            (BB_BISHOP_ATTACKS[square] & self.bishops) |
+            (BB_PAWN_ATTACKS[not color][square] & self.pawns) |
+            (BB_1_DIAGONAL_JUMPER_ATTACKS[square] & self.queens)
+        )
 
         return attackers & self.occupied_co[color]
 
@@ -1862,12 +1858,7 @@ class Board(BaseBoard):
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            if BB_SQUARES[from_square] & self.bishops:
-                # Special movement for bishops using diagonal jumper pattern
-                moves = BB_2_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
-            else:
-                # Normal movement for other pieces
-                moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
+            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
             
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
