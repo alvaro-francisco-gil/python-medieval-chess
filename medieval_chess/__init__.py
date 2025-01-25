@@ -907,15 +907,15 @@ class BaseBoard:
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
             if BB_SQUARES[from_square] & self.queens:
-                # Check if the queen has moved from its initial position
-                has_moved = any(move.from_square == from_square and move.piece_type == 'Q' for move in self.move_stack)
-                if not has_moved:  # If the queen has not moved
+                queen = self.piece_at(from_square)
+                has_moved = queen.has_moved  # Check if the queen has moved
+                if not has_moved:
                     # Allow the queen to move either 1 square or 3 squares diagonally
                     moves = (BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] | 
-                            _step_attacks(from_square, [7, 9, -7, -9])) & ~our_pieces & to_mask
+                            BB_1_DIAGONAL_JUMPER_ATTACKS[from_square]) & ~our_pieces & to_mask
                 else:
-                    # Queens can only move 1 square diagonally
-                    moves = _step_attacks(from_square, [7, 9, -7, -9]) & ~our_pieces & to_mask  # Single step diagonal moves only
+                    # Normal movement for queens
+                    moves = BB_1_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
             else:
                 # Normal movement for other pieces
                 moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
@@ -1917,8 +1917,8 @@ class Board(BaseBoard):
             yield Move(from_square, to_square)
 
         # Generate en passant captures.
-        if self.ep_square:
-            yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
+        # if self.ep_square:
+        #     yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
 
     def generate_pseudo_legal_ep(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
         if not self.ep_square or not BB_SQUARES[self.ep_square] & to_mask:
