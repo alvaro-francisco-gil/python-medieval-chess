@@ -502,7 +502,7 @@ def _sliding_attacks(square: Square, occupied: Bitboard, deltas: Iterable[int]) 
 
         while True:
             sq += delta
-            if not (0 <= sq < 64) or square_distance(sq, sq - delta) > 2:
+            if not (0 <= sq < 64) or square_distance(sq, sq - delta) > 3:
                 break
 
             attacks |= BB_SQUARES[sq]
@@ -523,7 +523,6 @@ BB_KNIGHT_ATTACKS: List[Bitboard] = [_step_attacks(sq, [17, 15, 10, 6, -17, -15,
 BB_KING_ATTACKS: List[Bitboard] = [_step_attacks(sq, [9, 8, 7, 1, -9, -8, -7, -1]) for sq in SQUARES]
 BB_PAWN_ATTACKS: List[List[Bitboard]] = [[_step_attacks(sq, deltas) for sq in SQUARES] for deltas in [[-7, -9], [7, 9]]]
 BB_BISHOP_ATTACKS: List[Bitboard] = BB_2_DIAGONAL_JUMPER_ATTACKS
-# BB_QUEEN_ATTACKS: List[Bitboard] = [BB_1_DIAGONAL_JUMPER_ATTACKS[sq] | (BB_3_DIAGONAL_JUMPER_ATTACKS[sq] if not has_moved else ]
 
 def _edges(square: Square) -> Bitboard:
     return (((BB_RANK_1 | BB_RANK_8) & ~BB_RANKS[square_rank(square)]) |
@@ -906,16 +905,13 @@ class BaseBoard:
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
+            moves = BB_EMPTY  # Initialize moves as an empty bitboard
             if BB_SQUARES[from_square] & self.queens:
-                if (square_rank(from_square) == 0 or square_rank(from_square) == 7):
-                    # Allow the queen to move either 1 square or 3 squares diagonally
-                    moves = self.get_queen_moves(from_square) & ~our_pieces & to_mask
-                else:
-                    # Normal movement for queens
-                    moves = BB_1_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
+                if (BB_SQUARES[from_square] & (BB_RANK_1 | BB_RANK_8)):
+                    print('The queen can jump!!!')
+                    moves |= self.get_queen_moves(from_square) & ~our_pieces & to_mask
             else:
-                # Normal movement for other pieces
-                moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
+                moves |= self.attacks_mask(from_square) & ~our_pieces & to_mask
             
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
@@ -1863,6 +1859,9 @@ class Board(BaseBoard):
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
             moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
+            if BB_SQUARES[from_square] & self.queens:
+                if (BB_SQUARES[from_square] & (BB_RANK_1 | BB_RANK_8)):
+                    moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
             
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
@@ -1921,8 +1920,8 @@ class Board(BaseBoard):
             yield Move(from_square, to_square)
 
         # Generate en passant captures.
-        # if self.ep_square:
-        #     yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
+        if self.ep_square:
+            yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
 
     def generate_pseudo_legal_ep(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
         if not self.ep_square or not BB_SQUARES[self.ep_square] & to_mask:
