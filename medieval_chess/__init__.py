@@ -907,12 +907,9 @@ class BaseBoard:
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
             if BB_SQUARES[from_square] & self.queens:
-                queen = self.piece_at(from_square)
-                has_moved = queen.has_moved  # Check if the queen has moved
-                if not has_moved:
+                if (square_rank(from_square) == 0 or square_rank(from_square) == 7):
                     # Allow the queen to move either 1 square or 3 squares diagonally
-                    moves = (BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] | 
-                            BB_1_DIAGONAL_JUMPER_ATTACKS[from_square]) & ~our_pieces & to_mask
+                    moves = self.get_queen_moves(from_square) & ~our_pieces & to_mask
                 else:
                     # Normal movement for queens
                     moves = BB_1_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
@@ -926,6 +923,13 @@ class BaseBoard:
         # Generate castling moves.
         if from_mask & self.kings:
             yield from self.generate_castling_moves(from_mask, to_mask)
+
+    def get_queen_moves(self, from_square: Square) -> Bitboard:
+        """Returns the queen's movement options based on the move stack."""
+        # moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] | BB_1_DIAGONAL_JUMPER_ATTACKS[from_square]
+        # Additional logic can be added here to check self.move_stack if needed
+        moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square]
+        return moves
 
     def attacks(self, square: Square) -> SquareSet:
         """
