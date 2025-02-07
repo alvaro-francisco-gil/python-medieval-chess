@@ -766,6 +766,7 @@ class BaseBoard:
         self.kings = BB_E1 | BB_E8
 
         self.promoted = BB_EMPTY
+        self.moved_queens = BB_EMPTY
 
         self.occupied_co[WHITE] = BB_RANK_1 | BB_RANK_2
         self.occupied_co[BLACK] = BB_RANK_7 | BB_RANK_8
@@ -880,7 +881,14 @@ class BaseBoard:
         return msb(king_mask) if king_mask else None
 
     def queens_atack_mask(self, square: Square) -> Bitboard:
-        return BB_3_DIAGONAL_JUMPER_ATTACKS[square]
+        # Check move history to see if this queen has moved
+        if isinstance(self, Board):  # Only Board class has move_stack
+            for move in self.move_stack:
+                if move.from_square == square:
+                    return BB_EMPTY  # Queen has moved, no special attacks
+        
+        # Only return squares that aren't occupied by any pieces
+        return BB_3_DIAGONAL_JUMPER_ATTACKS[square] & ~self.occupied
 
     def attacks_mask(self, square: Square) -> Bitboard:
         bb_square = BB_SQUARES[square]
