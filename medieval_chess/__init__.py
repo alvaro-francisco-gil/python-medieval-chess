@@ -665,6 +665,7 @@ class Move:
         For example, a move from a7 to a8 would be ``a7a8`` or ``a7a8q``
         (if the latter is a promotion to a queen).
 
+        
         The UCI representation of a null move is ``0000``.
         """
         if self.drop:
@@ -878,6 +879,9 @@ class BaseBoard:
         king_mask = self.occupied_co[color] & self.kings & ~self.promoted
         return msb(king_mask) if king_mask else None
 
+    def queens_atack_mask(self, square: Square) -> Bitboard:
+        return BB_3_DIAGONAL_JUMPER_ATTACKS[square]
+
     def attacks_mask(self, square: Square) -> Bitboard:
         bb_square = BB_SQUARES[square]
 
@@ -894,6 +898,8 @@ class BaseBoard:
                 attacks = BB_BISHOP_ATTACKS[square]
             if bb_square & self.queens:
                 attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
+                if (bb_square & (BB_RANK_1 | BB_RANK_8)):
+                    attacks |= self.queens_atack_mask(square)
             if bb_square & self.rooks:
                 attacks |= (BB_RANK_ATTACKS[square][BB_RANK_MASKS[square] & self.occupied] |
                         BB_FILE_ATTACKS[square][BB_FILE_MASKS[square] & self.occupied])
@@ -905,11 +911,18 @@ class BaseBoard:
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            moves = BB_EMPTY  # Initialize moves as an empty bitboard
-            if BB_SQUARES[from_square] & self.queens:
-                if (BB_SQUARES[from_square] & (BB_RANK_1 | BB_RANK_8)):
-                    print('The queen can jump!!!')
-                    moves |= self.get_queen_moves(from_square) & ~our_pieces & to_mask
+            moves = BB_EMPTY
+            piece_bb = BB_SQUARES[from_square]
+            
+            if piece_bb & self.queens:
+                # Regular queen moves (attacks)
+                moves |= self.attacks_mask(from_square) & ~our_pieces & to_mask
+                
+                # Special 3-square diagonal jump for queens on back rank
+                if piece_bb & (BB_RANK_1 | BB_RANK_8):
+                    # Add the 3-square diagonal moves but exclude squares with opponent pieces
+                    long_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & ~self.occupied & to_mask
+                    moves |= long_moves
             else:
                 moves |= self.attacks_mask(from_square) & ~our_pieces & to_mask
             
@@ -1858,11 +1871,7 @@ class Board(BaseBoard):
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
-            if BB_SQUARES[from_square] & self.queens:
-                if (BB_SQUARES[from_square] & (BB_RANK_1 | BB_RANK_8)):
-                    moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & ~our_pieces & to_mask
-            
+            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask            
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
 
