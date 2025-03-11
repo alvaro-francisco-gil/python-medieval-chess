@@ -904,7 +904,7 @@ class BaseBoard:
             if bb_square & self.queens:
                 attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
             if bb_square & self.queens_grace_jump:
-                attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square] | BB_3_DIAGONAL_JUMPER_ATTACKS[square]
+                attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
             if bb_square & self.rooks:
                 attacks |= (BB_RANK_ATTACKS[square][BB_RANK_MASKS[square] & self.occupied] |
                         BB_FILE_ATTACKS[square][BB_FILE_MASKS[square] & self.occupied])
@@ -1873,7 +1873,15 @@ class Board(BaseBoard):
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask            
+            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
+            
+            # Add special 3-diagonal jumper attacks for QUEEN_GRACE_JUMP pieces
+            # Only to empty squares (no captures)
+            if self.piece_type_at(from_square) == QUEEN_GRACE_JUMP:
+                empty_squares = ~self.occupied  # All empty squares
+                jumper_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                moves |= jumper_moves
+                
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
 
