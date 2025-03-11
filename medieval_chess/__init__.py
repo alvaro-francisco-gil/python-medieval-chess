@@ -1607,6 +1607,8 @@ class _BoardState:
         self.halfmove_clock = board.halfmove_clock
         self.fullmove_number = board.fullmove_number
 
+        self.capture_happened = board.capture_happened
+
     def restore(self, board: Board) -> None:
         board.pawns = self.pawns
         board.knights = self.knights
@@ -1627,6 +1629,8 @@ class _BoardState:
         board.ep_square = self.ep_square
         board.halfmove_clock = self.halfmove_clock
         board.fullmove_number = self.fullmove_number
+
+        board.capture_happened = self.capture_happened
 
 class Board(BaseBoard):
     """
@@ -1742,6 +1746,7 @@ class Board(BaseBoard):
         BaseBoard.__init__(self, None)
 
         self.chess960 = chess960
+        self.capture_happened = False
 
         self.ep_square = None
         self.move_stack = []
@@ -1796,6 +1801,7 @@ class Board(BaseBoard):
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
+        self.capture_happened = False
 
         self.reset_board()
 
@@ -1818,6 +1824,7 @@ class Board(BaseBoard):
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
+        self.capture_happened = False
 
         self.clear_board()
 
@@ -1895,10 +1902,18 @@ class Board(BaseBoard):
         # Prepare pawn advance generation.
         if self.turn == WHITE:
             single_moves = pawns << 8 & ~self.occupied
-            double_moves = single_moves << 8 & ~self.occupied & (BB_RANK_3 | BB_RANK_4)
+            # Only allow double moves if no capture has happened yet
+            if not self.capture_happened:
+                double_moves = single_moves << 8 & ~self.occupied & (BB_RANK_3 | BB_RANK_4)
+            else:
+                double_moves = BB_EMPTY  # No double moves if a capture has happened
         else:
             single_moves = pawns >> 8 & ~self.occupied
-            double_moves = single_moves >> 8 & ~self.occupied & (BB_RANK_6 | BB_RANK_5)
+            # Only allow double moves if no capture has happened yet
+            if not self.capture_happened:
+                double_moves = single_moves >> 8 & ~self.occupied & (BB_RANK_6 | BB_RANK_5)
+            else:
+                double_moves = BB_EMPTY  # No double moves if a capture has happened
 
         single_moves &= to_mask
         double_moves &= to_mask
@@ -2343,7 +2358,7 @@ class Board(BaseBoard):
         return False
 
     def _push_capture(self, move: Move, capture_square: Square, piece_type: PieceType, was_promoted: bool) -> None:
-        pass
+        self.capture_happened = True
 
     def push(self, move: Move) -> None:
         """
