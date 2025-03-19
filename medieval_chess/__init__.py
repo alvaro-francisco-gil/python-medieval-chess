@@ -524,6 +524,7 @@ BB_KNIGHT_ATTACKS: List[Bitboard] = [_step_attacks(sq, [17, 15, 10, 6, -17, -15,
 BB_KING_ATTACKS: List[Bitboard] = [_step_attacks(sq, [9, 8, 7, 1, -9, -8, -7, -1]) for sq in SQUARES]
 BB_PAWN_ATTACKS: List[List[Bitboard]] = [[_step_attacks(sq, deltas) for sq in SQUARES] for deltas in [[-7, -9], [7, 9]]]
 BB_BISHOP_ATTACKS: List[Bitboard] = BB_2_DIAGONAL_JUMPER_ATTACKS
+BB_2_ORTHOGONAL_JUMPER_ATTACKS: List[Bitboard] = [_step_attacks(sq, [16, -16, 2, -2]) for sq in SQUARES]
 
 def _edges(square: Square) -> Bitboard:
     return (((BB_RANK_1 | BB_RANK_8) & ~BB_RANKS[square_rank(square)]) |
@@ -1875,12 +1876,17 @@ class Board(BaseBoard):
         for from_square in scan_reversed(non_pawns):
             moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
             
-            # Add special 3-diagonal jumper attacks for QUEEN_GRACE_JUMP pieces
-            # Only to empty squares (no captures)
+            # Add special jumper moves for QUEEN_GRACE_JUMP pieces
             if self.piece_type_at(from_square) == QUEEN_GRACE_JUMP:
+                # Diagonal jumper moves (only to empty squares)
                 empty_squares = ~self.occupied  # All empty squares
-                jumper_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
-                moves |= jumper_moves
+                diagonal_jumper_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                
+                # Add 2-square horizontal/vertical jumper moves (only to empty squares)
+                orthogonal_jumper_moves = BB_2_ORTHOGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                
+                # Combine both special move types
+                moves |= diagonal_jumper_moves | orthogonal_jumper_moves
                 
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
