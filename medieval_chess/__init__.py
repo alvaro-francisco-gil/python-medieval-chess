@@ -47,9 +47,10 @@ BISHOP: PieceType = 3
 ROOK: PieceType = 4
 QUEEN: PieceType = 5
 KING: PieceType = 6
-PIECE_TYPES: List[PieceType] = [PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING]
-PIECE_SYMBOLS = [None, "p", "n", "b", "r", "q", "k"]
-PIECE_NAMES = [None, "pawn", "knight", "bishop", "rook", "queen", "king"]
+QUEEN_GRACE_JUMP: PieceType = 7
+PIECE_TYPES: List[PieceType] = [PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, QUEEN_GRACE_JUMP]
+PIECE_SYMBOLS = [None, "p", "n", "b", "r", "q", "k", "q"]
+PIECE_NAMES = [None, "pawn", "knight", "bishop", "rook", "queen", "king", "queen"]
 
 def piece_symbol(piece_type: PieceType) -> str:
     return typing.cast(str, PIECE_SYMBOLS[piece_type])
@@ -523,6 +524,7 @@ BB_KNIGHT_ATTACKS: List[Bitboard] = [_step_attacks(sq, [17, 15, 10, 6, -17, -15,
 BB_KING_ATTACKS: List[Bitboard] = [_step_attacks(sq, [9, 8, 7, 1, -9, -8, -7, -1]) for sq in SQUARES]
 BB_PAWN_ATTACKS: List[List[Bitboard]] = [[_step_attacks(sq, deltas) for sq in SQUARES] for deltas in [[-7, -9], [7, 9]]]
 BB_BISHOP_ATTACKS: List[Bitboard] = BB_2_DIAGONAL_JUMPER_ATTACKS
+BB_2_ORTHOGONAL_JUMPER_ATTACKS: List[Bitboard] = [_step_attacks(sq, [16, -16, 2, -2]) for sq in SQUARES]
 
 def _edges(square: Square) -> Bitboard:
     return (((BB_RANK_1 | BB_RANK_8) & ~BB_RANKS[square_rank(square)]) |
@@ -762,7 +764,8 @@ class BaseBoard:
         self.knights = BB_B1 | BB_G1 | BB_B8 | BB_G8
         self.bishops = BB_C1 | BB_F1 | BB_C8 | BB_F8
         self.rooks = BB_CORNERS
-        self.queens = BB_D1 | BB_D8
+        self.queens_grace_jump = BB_D1 | BB_D8
+        self.queens = BB_EMPTY
         self.kings = BB_E1 | BB_E8
 
         self.promoted = BB_EMPTY
@@ -787,6 +790,7 @@ class BaseBoard:
         self.knights = BB_EMPTY
         self.bishops = BB_EMPTY
         self.rooks = BB_EMPTY
+        self.queens_grace_jump = BB_EMPTY
         self.queens = BB_EMPTY
         self.kings = BB_EMPTY
 
@@ -813,6 +817,8 @@ class BaseBoard:
             bb = self.bishops
         elif piece_type == ROOK:
             bb = self.rooks
+        elif piece_type == QUEEN_GRACE_JUMP:
+            bb = self.queens_grace_jump
         elif piece_type == QUEEN:
             bb = self.queens
         elif piece_type == KING:
@@ -856,6 +862,8 @@ class BaseBoard:
             return ROOK
         elif self.queens & mask:
             return QUEEN
+        elif self.queens_grace_jump & mask:
+            return QUEEN_GRACE_JUMP
         else:
             return KING
 
@@ -880,16 +888,6 @@ class BaseBoard:
         king_mask = self.occupied_co[color] & self.kings & ~self.promoted
         return msb(king_mask) if king_mask else None
 
-    def queens_atack_mask(self, square: Square) -> Bitboard:
-        # Check move history to see if this queen has moved
-        if isinstance(self, Board):  # Only Board class has move_stack
-            for move in self.move_stack:
-                if move.from_square == square:
-                    return BB_EMPTY  # Queen has moved, no special attacks
-        
-        # Only return squares that aren't occupied by any pieces
-        return BB_3_DIAGONAL_JUMPER_ATTACKS[square] & ~self.occupied
-
     def attacks_mask(self, square: Square) -> Bitboard:
         bb_square = BB_SQUARES[square]
 
@@ -906,8 +904,8 @@ class BaseBoard:
                 attacks = BB_BISHOP_ATTACKS[square]
             if bb_square & self.queens:
                 attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
-                if (bb_square & (BB_RANK_1 | BB_RANK_8)):
-                    attacks |= self.queens_atack_mask(square)
+            if bb_square & self.queens_grace_jump:
+                attacks = BB_1_DIAGONAL_JUMPER_ATTACKS[square]
             if bb_square & self.rooks:
                 attacks |= (BB_RANK_ATTACKS[square][BB_RANK_MASKS[square] & self.occupied] |
                         BB_FILE_ATTACKS[square][BB_FILE_MASKS[square] & self.occupied])
@@ -919,20 +917,7 @@ class BaseBoard:
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            moves = BB_EMPTY
-            piece_bb = BB_SQUARES[from_square]
-            
-            if piece_bb & self.queens:
-                # Regular queen moves (attacks)
-                moves |= self.attacks_mask(from_square) & ~our_pieces & to_mask
-                
-                # Special 3-square diagonal jump for queens on back rank
-                if piece_bb & (BB_RANK_1 | BB_RANK_8):
-                    # Add the 3-square diagonal moves but exclude squares with opponent pieces
-                    long_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & ~self.occupied & to_mask
-                    moves |= long_moves
-            else:
-                moves |= self.attacks_mask(from_square) & ~our_pieces & to_mask
+            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
             
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
@@ -940,13 +925,6 @@ class BaseBoard:
         # Generate castling moves.
         if from_mask & self.kings:
             yield from self.generate_castling_moves(from_mask, to_mask)
-
-    def get_queen_moves(self, from_square: Square) -> Bitboard:
-        """Returns the queen's movement options based on the move stack."""
-        # moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] | BB_1_DIAGONAL_JUMPER_ATTACKS[from_square]
-        # Additional logic can be added here to check self.move_stack if needed
-        moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square]
-        return moves
 
     def attacks(self, square: Square) -> SquareSet:
         """
@@ -972,7 +950,8 @@ class BaseBoard:
             (BB_FILE_ATTACKS[square][file_pieces] & self.rooks) |
             (BB_BISHOP_ATTACKS[square] & self.bishops) |
             (BB_PAWN_ATTACKS[not color][square] & self.pawns) |
-            (BB_1_DIAGONAL_JUMPER_ATTACKS[square] & self.queens)
+            (BB_1_DIAGONAL_JUMPER_ATTACKS[square] & self.queens) |
+            (BB_1_DIAGONAL_JUMPER_ATTACKS[square] & self.queens_grace_jump)
         )
 
         return attackers & self.occupied_co[color]
@@ -1080,6 +1059,8 @@ class BaseBoard:
             self.rooks ^= mask
         elif piece_type == QUEEN:
             self.queens ^= mask
+        elif piece_type == QUEEN_GRACE_JUMP:
+            self.queens_grace_jump ^= mask
         elif piece_type == KING:
             self.kings ^= mask
         else:
@@ -1117,6 +1098,8 @@ class BaseBoard:
             self.bishops |= mask
         elif piece_type == ROOK:
             self.rooks |= mask
+        elif piece_type == QUEEN_GRACE_JUMP:
+            self.queens_grace_jump |= mask
         elif piece_type == QUEEN:
             self.queens |= mask
         elif piece_type == KING:
@@ -1494,6 +1477,7 @@ class BaseBoard:
                 self.knights == board.knights and
                 self.bishops == board.bishops and
                 self.rooks == board.rooks and
+                self.queens_grace_jump == board.queens_grace_jump and
                 self.queens == board.queens and
                 self.kings == board.kings)
         else:
@@ -1504,6 +1488,7 @@ class BaseBoard:
         self.knights = f(self.knights)
         self.bishops = f(self.bishops)
         self.rooks = f(self.rooks)
+        self.queens_grace_jump = f(self.queens_grace_jump)
         self.queens = f(self.queens)
         self.kings = f(self.kings)
 
@@ -1556,6 +1541,7 @@ class BaseBoard:
         board.knights = self.knights
         board.bishops = self.bishops
         board.rooks = self.rooks
+        board.queens_grace_jump = self.queens_grace_jump
         board.queens = self.queens
         board.kings = self.kings
 
@@ -1605,7 +1591,8 @@ class _BoardState:
         self.pawns = board.pawns
         self.knights = board.knights
         self.bishops = board.bishops
-        self.rooks = board.rooks
+        self.rooks = board.rooks        
+        self.queens_grace_jump = board.queens_grace_jump
         self.queens = board.queens
         self.kings = board.kings
 
@@ -1621,11 +1608,14 @@ class _BoardState:
         self.halfmove_clock = board.halfmove_clock
         self.fullmove_number = board.fullmove_number
 
+        self.capture_happened = board.capture_happened
+
     def restore(self, board: Board) -> None:
         board.pawns = self.pawns
         board.knights = self.knights
         board.bishops = self.bishops
         board.rooks = self.rooks
+        board.queens_grace_jump = self.queens_grace_jump
         board.queens = self.queens
         board.kings = self.kings
 
@@ -1640,6 +1630,8 @@ class _BoardState:
         board.ep_square = self.ep_square
         board.halfmove_clock = self.halfmove_clock
         board.fullmove_number = self.fullmove_number
+
+        board.capture_happened = self.capture_happened
 
 class Board(BaseBoard):
     """
@@ -1755,6 +1747,7 @@ class Board(BaseBoard):
         BaseBoard.__init__(self, None)
 
         self.chess960 = chess960
+        self.capture_happened = False
 
         self.ep_square = None
         self.move_stack = []
@@ -1809,6 +1802,7 @@ class Board(BaseBoard):
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
+        self.capture_happened = False
 
         self.reset_board()
 
@@ -1831,6 +1825,7 @@ class Board(BaseBoard):
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
+        self.capture_happened = False
 
         self.clear_board()
 
@@ -1879,7 +1874,20 @@ class Board(BaseBoard):
         # Generate piece moves.
         non_pawns = our_pieces & ~self.pawns & from_mask
         for from_square in scan_reversed(non_pawns):
-            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask            
+            moves = self.attacks_mask(from_square) & ~our_pieces & to_mask
+            
+            # Add special jumper moves for QUEEN_GRACE_JUMP pieces
+            if self.piece_type_at(from_square) == QUEEN_GRACE_JUMP:
+                # Diagonal jumper moves (only to empty squares)
+                empty_squares = ~self.occupied  # All empty squares
+                diagonal_jumper_moves = BB_2_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                
+                # Add 2-square horizontal/vertical jumper moves (only to empty squares)
+                orthogonal_jumper_moves = BB_2_ORTHOGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                
+                # Combine both special move types
+                moves |= diagonal_jumper_moves | orthogonal_jumper_moves
+                
             for to_square in scan_reversed(moves):
                 yield Move(from_square, to_square)
 
@@ -1901,20 +1909,25 @@ class Board(BaseBoard):
 
             for to_square in scan_reversed(targets):
                 if square_rank(to_square) in [0, 7]:
-                    yield Move(from_square, to_square, QUEEN)
-                    yield Move(from_square, to_square, ROOK)
-                    yield Move(from_square, to_square, BISHOP)
-                    yield Move(from_square, to_square, KNIGHT)
+                    yield Move(from_square, to_square, QUEEN_GRACE_JUMP)
                 else:
                     yield Move(from_square, to_square)
 
         # Prepare pawn advance generation.
         if self.turn == WHITE:
             single_moves = pawns << 8 & ~self.occupied
-            double_moves = single_moves << 8 & ~self.occupied & (BB_RANK_3 | BB_RANK_4)
+            # Only allow double moves if no capture has happened yet
+            if not self.capture_happened:
+                double_moves = single_moves << 8 & ~self.occupied & (BB_RANK_3 | BB_RANK_4)
+            else:
+                double_moves = BB_EMPTY  # No double moves if a capture has happened
         else:
             single_moves = pawns >> 8 & ~self.occupied
-            double_moves = single_moves >> 8 & ~self.occupied & (BB_RANK_6 | BB_RANK_5)
+            # Only allow double moves if no capture has happened yet
+            if not self.capture_happened:
+                double_moves = single_moves >> 8 & ~self.occupied & (BB_RANK_6 | BB_RANK_5)
+            else:
+                double_moves = BB_EMPTY  # No double moves if a capture has happened
 
         single_moves &= to_mask
         double_moves &= to_mask
@@ -1924,10 +1937,7 @@ class Board(BaseBoard):
             from_square = to_square + (8 if self.turn == BLACK else -8)
 
             if square_rank(to_square) in [0, 7]:
-                yield Move(from_square, to_square, QUEEN)
-                yield Move(from_square, to_square, ROOK)
-                yield Move(from_square, to_square, BISHOP)
-                yield Move(from_square, to_square, KNIGHT)
+                yield Move(from_square, to_square, QUEEN_GRACE_JUMP)
             else:
                 yield Move(from_square, to_square)
 
@@ -2362,7 +2372,7 @@ class Board(BaseBoard):
         return False
 
     def _push_capture(self, move: Move, capture_square: Square, piece_type: PieceType, was_promoted: bool) -> None:
-        pass
+        self.capture_happened = True
 
     def push(self, move: Move) -> None:
         """
@@ -2427,6 +2437,10 @@ class Board(BaseBoard):
         capture_square = move.to_square
         captured_piece_type = self.piece_type_at(capture_square)
 
+        # Handle QUEEN_GRACE_JUMP conversion to QUEEN after movement
+        if piece_type == QUEEN_GRACE_JUMP:
+            piece_type = QUEEN
+
         # Update castling rights.
         self.castling_rights &= ~to_bb & ~from_bb
         if piece_type == KING and not promoted:
@@ -2457,7 +2471,7 @@ class Board(BaseBoard):
         # Promotion.
         if move.promotion:
             promoted = True
-            piece_type = move.promotion
+            piece_type = QUEEN_GRACE_JUMP
 
         # Castling.
         castling = piece_type == KING and self.occupied_co[self.turn] & to_bb
@@ -2517,7 +2531,7 @@ class Board(BaseBoard):
         :raises: :exc:`IllegalMoveError` if no matching legal move is found.
         """
         if promotion is None and self.pawns & BB_SQUARES[from_square] and BB_SQUARES[to_square] & BB_BACKRANKS:
-            promotion = QUEEN
+            promotion = QUEEN_GRACE_JUMP
 
         move = self._from_chess960(self.chess960, from_square, to_square, promotion)
         if not self.is_legal(move):
