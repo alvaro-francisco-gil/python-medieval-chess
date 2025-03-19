@@ -15,7 +15,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Update the image path to use the resource_path function
-IMAGE_PATH = resource_path(r"images\JohnPablok Cburnett Chess Zip\JohnPablok Cburnett Chess set\PNGs\No shadow\1024h")
+IMAGE_PATH = resource_path(r"images")
 
 # Initialize pygame
 def initialize_pygame():
