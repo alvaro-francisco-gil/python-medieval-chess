@@ -1,5 +1,6 @@
 import medieval_chess as chess
 import pygame
+import os
 import sys
 
 # Determine if we're running as a script or frozen executable
