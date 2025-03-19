@@ -1880,7 +1880,7 @@ class Board(BaseBoard):
             if self.piece_type_at(from_square) == QUEEN_GRACE_JUMP:
                 # Diagonal jumper moves (only to empty squares)
                 empty_squares = ~self.occupied  # All empty squares
-                diagonal_jumper_moves = BB_3_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
+                diagonal_jumper_moves = BB_2_DIAGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
                 
                 # Add 2-square horizontal/vertical jumper moves (only to empty squares)
                 orthogonal_jumper_moves = BB_2_ORTHOGONAL_JUMPER_ATTACKS[from_square] & empty_squares & to_mask
