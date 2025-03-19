@@ -1,8 +1,20 @@
 import medieval_chess as chess
 import pygame
-import os
+import sys
 
-IMAGE_PATH = r"images\JohnPablok Cburnett Chess Zip\JohnPablok Cburnett Chess set\\PNGs\No shadow\1024h"
+# Determine if we're running as a script or frozen executable
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# Update the image path to use the resource_path function
+IMAGE_PATH = resource_path(r"images\JohnPablok Cburnett Chess Zip\JohnPablok Cburnett Chess set\PNGs\No shadow\1024h")
 
 # Initialize pygame
 def initialize_pygame():
