@@ -2,7 +2,7 @@ import medieval_chess as chess
 import pygame
 import os
 
-IMAGE_PATH = r"C:\Users\alvar\Githubs\python-medieval-chess\images\JohnPablok Cburnett Chess Zip\JohnPablok Cburnett Chess set\\PNGs\No shadow\1024h"
+IMAGE_PATH = r"images\JohnPablok Cburnett Chess Zip\JohnPablok Cburnett Chess set\\PNGs\No shadow\1024h"
 
 # Initialize pygame
 def initialize_pygame():
