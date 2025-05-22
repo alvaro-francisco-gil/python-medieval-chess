@@ -32,6 +32,7 @@ DARK_BROWN = (181, 136, 99)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
+HIGHLIGHT_COLOR = (101, 67, 33, 128)  # Semi-transparent dark brown for possible moves
 
 # Add to the constants section
 BOARD_OFFSET_Y = MENU_HEIGHT  # Offset the board to make room for the menu
@@ -232,6 +233,28 @@ def copy_to_clipboard(text):
     root.update()
     root.destroy()
 
+def draw_possible_moves(screen, board, selected_square):
+    """Draw circles on squares where the selected piece can move"""
+    if selected_square is None:
+        return
+        
+    piece = board.piece_at(selected_square)
+    if piece is None:
+        return
+        
+    # Create a surface for the move indicator
+    indicator = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+    pygame.draw.circle(indicator, HIGHLIGHT_COLOR, (SQUARE_SIZE // 2, SQUARE_SIZE // 2), SQUARE_SIZE // 4)
+    
+    # Show possible moves
+    for move in board.legal_moves:
+        if move.from_square == selected_square:
+            dest_col = chess.square_file(move.to_square)
+            dest_row = 7 - chess.square_rank(move.to_square)
+            screen.blit(indicator, 
+                       (dest_col * SQUARE_SIZE, 
+                        dest_row * SQUARE_SIZE + BOARD_OFFSET_Y))
+
 # Game loop for starting from a given FEN
 def start_game_from_fen(fen=None, print_moves=False):
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -278,7 +301,7 @@ def start_game_from_fen(fen=None, print_moves=False):
                         ):
                             move = chess.Move(selected_square, destination_square, promotion=chess.QUEEN_GRACE_JUMP)
 
-                        if move in list(board.legal_moves):
+                        if move in list(board.legal_moves):  # Explicitly convert to list
                             board.push(move)
                             if print_moves:
                                 print(f"Move: {chess.square_name(selected_square)}{chess.square_name(destination_square)}")
@@ -301,8 +324,16 @@ def start_game_from_fen(fen=None, print_moves=False):
                 selected_square = None
 
         draw_board(screen)
+        
+        # Draw possible moves before pieces to show them under the pieces
+        if selected_square is not None:
+            piece = board.piece_at(selected_square)
+            if piece and piece.color == board.turn:
+                draw_possible_moves(screen, board, selected_square)
+            
         draw_pieces(screen, board, piece_images)
 
+        # Highlight selected square
         if selected_square is not None and chess.SQUARES[0] <= selected_square <= chess.SQUARES[-1]:
             col = chess.square_file(selected_square)
             row = 7 - chess.square_rank(selected_square)
