@@ -1945,10 +1945,6 @@ class Board(BaseBoard):
             from_square = to_square + (16 if self.turn == BLACK else -16)
             yield Move(from_square, to_square)
 
-        # Generate en passant captures.
-        if self.ep_square:
-            yield from self.generate_pseudo_legal_ep(from_mask, to_mask)
-
     def generate_pseudo_legal_ep(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
         if not self.ep_square or not BB_SQUARES[self.ep_square] & to_mask:
             return
