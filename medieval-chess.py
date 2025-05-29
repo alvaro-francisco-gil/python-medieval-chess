@@ -352,6 +352,7 @@ def start_game_from_fen(fen=None, print_moves=False):
     
     running = True
     selected_square = None
+    possible_moves = []  # Store possible moves for the selected piece
 
     while running:
         screen.fill(GRAY)  # Fill background
@@ -375,23 +376,36 @@ def start_game_from_fen(fen=None, print_moves=False):
                 elif menu_btn.collidepoint(mouse_pos):
                     return "menu"  # Return to main menu
                 else:
-                    selected_square = get_square_under_mouse(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONUP:
-                if selected_square is not None:  # Only process move if we had a valid selection
-                    destination_square = get_square_under_mouse(pygame.mouse.get_pos())
-                    if destination_square is not None:  # Only process move if destination is valid
-                        move = chess.Move(selected_square, destination_square)
-
-                        piece = board.piece_at(selected_square)
-                        if piece and piece.piece_type == chess.PAWN and (
-                            chess.square_rank(destination_square) == 0 or chess.square_rank(destination_square) == 7
-                        ):
-                            move = chess.Move(selected_square, destination_square, promotion=chess.QUEEN_GRACE_JUMP)
-
-                        if move in list(board.legal_moves):  # Explicitly convert to list
+                    clicked_square = get_square_under_mouse(mouse_pos)
+                    
+                    if clicked_square is not None:
+                        piece = board.piece_at(clicked_square)
+                        
+                        # If clicking on a piece of the current player's color
+                        if piece and piece.color == board.turn:
+                            # If clicking on a different piece, update selection
+                            if clicked_square != selected_square:
+                                selected_square = clicked_square
+                                # Calculate possible moves for the selected piece
+                                possible_moves = [move.to_square for move in board.legal_moves 
+                                                if move.from_square == selected_square]
+                        # If a piece is selected and clicking on a valid move
+                        elif selected_square is not None and clicked_square in possible_moves:
+                            # Make the move
+                            move = chess.Move(selected_square, clicked_square)
+                            
+                            # Handle pawn promotion
+                            piece = board.piece_at(selected_square)
+                            if piece and piece.piece_type == chess.PAWN and (
+                                chess.square_rank(clicked_square) == 0 or chess.square_rank(clicked_square) == 7
+                            ):
+                                move = chess.Move(selected_square, clicked_square, promotion=chess.QUEEN_GRACE_JUMP)
+                            
                             board.push(move)
                             if print_moves:
-                                print(f"Move: {chess.square_name(selected_square)}{chess.square_name(destination_square)}")
+                                print(f"Move: {chess.square_name(selected_square)}{chess.square_name(clicked_square)}")
+                            
+                            # Check game end conditions
                             if board.is_checkmate():
                                 display_message(screen, "Checkmate! " + ("White wins!" if board.turn == chess.BLACK else "Black wins!"))
                                 running = False
@@ -407,24 +421,52 @@ def start_game_from_fen(fen=None, print_moves=False):
                             elif board.is_fivefold_repetition():
                                 display_message(screen, "Draw due to fivefold repetition!")
                                 running = False
-
-                selected_square = None
+                            
+                            # Reset selection
+                            selected_square = None
+                            possible_moves = []
+                        # If clicking on an invalid square, clear selection
+                        else:
+                            selected_square = None
+                            possible_moves = []
 
         draw_board(screen)
         draw_pieces(screen, board, piece_images)
 
-        # Draw the selected square highlight
-        if selected_square is not None and chess.SQUARES[0] <= selected_square <= chess.SQUARES[-1]:
+        # Draw the selected square highlight and possible moves
+        if selected_square is not None:
+            # Highlight selected square
             col = chess.square_file(selected_square)
             row = 7 - chess.square_rank(selected_square)
             pygame.draw.rect(screen, (0, 255, 0), 
                            (col * SQUARE_SIZE, row * SQUARE_SIZE + BOARD_OFFSET_Y, SQUARE_SIZE, SQUARE_SIZE), 
                            width=3)
             
-            # Draw possible moves after everything else to ensure they're on top
-            piece = board.piece_at(selected_square)
-            if piece and piece.color == board.turn:
-                draw_possible_moves(screen, board, selected_square)
+            # Draw possible moves
+            for move_square in possible_moves:
+                dest_col = chess.square_file(move_square)
+                dest_row = 7 - chess.square_rank(move_square)
+                
+                # Check if it's a capture move
+                target_piece = board.piece_at(move_square)
+                if target_piece is not None:
+                    # Draw capture indicator
+                    capture_surface = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+                    pygame.draw.circle(capture_surface, CAPTURE_COLOR, 
+                                    (SQUARE_SIZE // 2, SQUARE_SIZE // 2), 
+                                    SQUARE_SIZE // 4)
+                    screen.blit(capture_surface, 
+                              (dest_col * SQUARE_SIZE, 
+                               dest_row * SQUARE_SIZE + BOARD_OFFSET_Y))
+                else:
+                    # Draw normal move indicator
+                    move_surface = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+                    pygame.draw.circle(move_surface, HIGHLIGHT_COLOR, 
+                                    (SQUARE_SIZE // 2, SQUARE_SIZE // 2), 
+                                    SQUARE_SIZE // 4)
+                    screen.blit(move_surface, 
+                              (dest_col * SQUARE_SIZE, 
+                               dest_row * SQUARE_SIZE + BOARD_OFFSET_Y))
 
         pygame.display.flip()
 
