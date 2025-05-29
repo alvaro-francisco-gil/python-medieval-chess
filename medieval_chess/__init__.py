@@ -3716,12 +3716,8 @@ class Board(BaseBoard):
         return False
 
     def _slider_blockers(self, king: Square) -> Bitboard:
-        rooks_and_queens = self.rooks | self.queens
-        bishops_and_queens = self.bishops | self.queens
-
-        snipers = ((BB_RANK_ATTACKS[king][0] & rooks_and_queens) |
-                   (BB_FILE_ATTACKS[king][0] & rooks_and_queens) |
-                   (BB_DIAG_ATTACKS[king][0] & bishops_and_queens))
+        snipers = ((BB_RANK_ATTACKS[king][0] & self.rooks) |
+                   (BB_FILE_ATTACKS[king][0] & self.rooks))
 
         blockers = 0
 
