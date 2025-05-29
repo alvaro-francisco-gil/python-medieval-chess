@@ -3766,7 +3766,7 @@ class Board(BaseBoard):
         return any(self.attackers_mask(not self.turn, sq, occupied) for sq in scan_reversed(path))
 
     def generate_castling_moves(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
-        return
+        return iter([])
 
     def _from_chess960(self, chess960: bool, from_square: Square, to_square: Square, promotion: Optional[PieceType] = None, drop: Optional[PieceType] = None) -> Move:
         if not chess960 and promotion is None and drop is None:
