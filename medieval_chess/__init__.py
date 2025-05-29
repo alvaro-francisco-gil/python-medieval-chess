@@ -1603,7 +1603,7 @@ class _BoardState:
         self.promoted = board.promoted
 
         self.turn = board.turn
-        self.castling_rights = board.castling_rights
+        self.castling_rights = BB_EMPTY
         self.ep_square = board.ep_square
         self.halfmove_clock = board.halfmove_clock
         self.fullmove_number = board.fullmove_number
@@ -1684,7 +1684,6 @@ class Board(BaseBoard):
     turn: Color
     """The side to move (``medieval_chess.WHITE`` or ``medieval_chess.BLACK``)."""
 
-    castling_rights: Bitboard
     """
     Bitmask of the rooks with castling rights.
 
@@ -1798,7 +1797,7 @@ class Board(BaseBoard):
     def reset(self) -> None:
         """Restores the starting position."""
         self.turn = WHITE
-        self.castling_rights = BB_CORNERS
+        self.castling_rights = BB_EMPTY
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
@@ -2781,7 +2780,7 @@ class Board(BaseBoard):
         super().set_chess960_pos(scharnagl)
         self.chess960 = True
         self.turn = WHITE
-        self.castling_rights = self.rooks
+        self.castling_rights = BB_EMPTY
         self.ep_square = None
         self.halfmove_clock = 0
         self.fullmove_number = 1
@@ -3487,50 +3486,12 @@ class Board(BaseBoard):
             return black_a_side | black_h_side | white_a_side | white_h_side
 
     def has_castling_rights(self, color: Color) -> bool:
-        """Checks if the given side has castling rights."""
-        backrank = BB_RANK_1 if color == WHITE else BB_RANK_8
-        return bool(self.clean_castling_rights() & backrank)
+        return False
 
     def has_kingside_castling_rights(self, color: Color) -> bool:
-        """
-        Checks if the given side has kingside (that is h-side in Chess960)
-        castling rights.
-        """
-        backrank = BB_RANK_1 if color == WHITE else BB_RANK_8
-        king_mask = self.kings & self.occupied_co[color] & backrank & ~self.promoted
-        if not king_mask:
-            return False
-
-        castling_rights = self.clean_castling_rights() & backrank
-        while castling_rights:
-            rook = castling_rights & -castling_rights
-
-            if rook > king_mask:
-                return True
-
-            castling_rights &= castling_rights - 1
-
         return False
 
     def has_queenside_castling_rights(self, color: Color) -> bool:
-        """
-        Checks if the given side has queenside (that is a-side in Chess960)
-        castling rights.
-        """
-        backrank = BB_RANK_1 if color == WHITE else BB_RANK_8
-        king_mask = self.kings & self.occupied_co[color] & backrank & ~self.promoted
-        if not king_mask:
-            return False
-
-        castling_rights = self.clean_castling_rights() & backrank
-        while castling_rights:
-            rook = castling_rights & -castling_rights
-
-            if rook < king_mask:
-                return True
-
-            castling_rights &= castling_rights - 1
-
         return False
 
     def has_chess960_castling_rights(self) -> bool:
@@ -3805,34 +3766,7 @@ class Board(BaseBoard):
         return any(self.attackers_mask(not self.turn, sq, occupied) for sq in scan_reversed(path))
 
     def generate_castling_moves(self, from_mask: Bitboard = BB_ALL, to_mask: Bitboard = BB_ALL) -> Iterator[Move]:
-        if self.is_variant_end():
-            return
-
-        backrank = BB_RANK_1 if self.turn == WHITE else BB_RANK_8
-        king = self.occupied_co[self.turn] & self.kings & ~self.promoted & backrank & from_mask
-        king &= -king
-        if not king:
-            return
-
-        bb_c = BB_FILE_C & backrank
-        bb_d = BB_FILE_D & backrank
-        bb_f = BB_FILE_F & backrank
-        bb_g = BB_FILE_G & backrank
-
-        for candidate in scan_reversed(self.clean_castling_rights() & backrank & to_mask):
-            rook = BB_SQUARES[candidate]
-
-            a_side = rook < king
-            king_to = bb_c if a_side else bb_g
-            rook_to = bb_d if a_side else bb_f
-
-            king_path = between(msb(king), msb(king_to))
-            rook_path = between(candidate, msb(rook_to))
-
-            if not ((self.occupied ^ king ^ rook) & (king_path | rook_path | king_to | rook_to) or
-                    self._attacked_for_king(king_path | king, self.occupied ^ king) or
-                    self._attacked_for_king(king_to, self.occupied ^ king ^ rook ^ rook_to)):
-                yield self._from_chess960(self.chess960, msb(king), candidate)
+        return
 
     def _from_chess960(self, chess960: bool, from_square: Square, to_square: Square, promotion: Optional[PieceType] = None, drop: Optional[PieceType] = None) -> Move:
         if not chess960 and promotion is None and drop is None:
@@ -3898,7 +3832,6 @@ class Board(BaseBoard):
         super().apply_transform(f)
         self.clear_stack()
         self.ep_square = None if self.ep_square is None else msb(f(BB_SQUARES[self.ep_square]))
-        self.castling_rights = f(self.castling_rights)
 
     def transform(self, f: Callable[[Bitboard], Bitboard]) -> Self:
         board = self.copy(stack=False)
