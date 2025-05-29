@@ -19,12 +19,49 @@ def resource_path(relative_path):
 # Update the image path to use the resource_path function
 IMAGE_PATH = resource_path(r"images")
 
-# Screen dimensions
-WIDTH = 800
-MENU_HEIGHT = 40
-BOARD_SIZE = 800  # The actual board size remains 800x800
-HEIGHT = BOARD_SIZE + MENU_HEIGHT  # Total window height includes menu
-SQUARE_SIZE = BOARD_SIZE // 8  # Square size is based on board size, not window size
+# Get screen dimensions
+def get_screen_dimensions():
+    pygame.init()
+    screen_info = pygame.display.Info()
+    screen_width = screen_info.current_w
+    screen_height = screen_info.current_h
+    return screen_width, screen_height
+
+# Calculate dynamic dimensions
+def calculate_dimensions():
+    screen_width, screen_height = get_screen_dimensions()
+    
+    # Calculate board size (80% of the smaller screen dimension)
+    board_size = min(screen_width, screen_height) * 0.8
+    
+    # Ensure board size is divisible by 8 for clean squares
+    board_size = (board_size // 8) * 8
+    
+    # Calculate menu height (5% of screen height, minimum 30px)
+    menu_height = max(int(screen_height * 0.05), 30)
+    
+    # Calculate total window dimensions
+    width = board_size
+    height = board_size + menu_height
+    
+    # Calculate square size
+    square_size = board_size // 8
+    
+    return {
+        'width': width,
+        'height': height,
+        'board_size': board_size,
+        'menu_height': menu_height,
+        'square_size': square_size
+    }
+
+# Get dimensions
+DIMENSIONS = calculate_dimensions()
+WIDTH = DIMENSIONS['width']
+MENU_HEIGHT = DIMENSIONS['menu_height']
+BOARD_SIZE = DIMENSIONS['board_size']
+HEIGHT = DIMENSIONS['height']
+SQUARE_SIZE = DIMENSIONS['square_size']
 
 # Colors
 LIGHT_BROWN = (240, 217, 181)
@@ -50,7 +87,9 @@ class Button:
         pygame.draw.rect(screen, color, self.rect)
         pygame.draw.rect(screen, BLACK, self.rect, 2)
         
-        font = pygame.font.SysFont("arial", 32)
+        # Scale font size based on button height
+        font_size = int(self.rect.height * 0.5)  # Font size is 50% of button height
+        font = pygame.font.SysFont("arial", font_size)
         text_surface = font.render(self.text, True, BLACK)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
@@ -85,19 +124,46 @@ def show_menu():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Medieval Chess")
     
-    # Create buttons - Adjust vertical positions for new height
-    new_game_btn = Button(WIDTH//4, HEIGHT//3 - MENU_HEIGHT, WIDTH//2, 60, "New Game", WHITE)
-    load_fen_btn = Button(WIDTH//4, HEIGHT//2 - MENU_HEIGHT, WIDTH//2, 60, "Load Position (FEN)", WHITE)
-    quit_btn = Button(WIDTH//4, 2*HEIGHT//3 - MENU_HEIGHT, WIDTH//2, 60, "Quit", WHITE)
+    # Calculate button dimensions
+    button_width = WIDTH * 0.6
+    button_height = HEIGHT * 0.1
+    button_spacing = HEIGHT * 0.05
+    
+    # Create buttons with dynamic positioning
+    new_game_btn = Button(
+        (WIDTH - button_width) // 2,
+        HEIGHT * 0.3,
+        button_width,
+        button_height,
+        "New Game",
+        WHITE
+    )
+    load_fen_btn = Button(
+        (WIDTH - button_width) // 2,
+        HEIGHT * 0.3 + button_height + button_spacing,
+        button_width,
+        button_height,
+        "Load Position (FEN)",
+        WHITE
+    )
+    quit_btn = Button(
+        (WIDTH - button_width) // 2,
+        HEIGHT * 0.3 + 2 * (button_height + button_spacing),
+        button_width,
+        button_height,
+        "Quit",
+        WHITE
+    )
     
     running = True
     while running:
         screen.fill(LIGHT_BROWN)
         
-        # Draw title - Adjust position for new height
-        font = pygame.font.SysFont("arial", 48)
+        # Draw title with dynamic font size
+        font_size = int(HEIGHT * 0.06)  # Font size is 6% of screen height
+        font = pygame.font.SysFont("arial", font_size)
         title = font.render("Medieval Chess", True, BLACK)
-        title_rect = title.get_rect(center=(WIDTH//2, HEIGHT//4 - MENU_HEIGHT))
+        title_rect = title.get_rect(center=(WIDTH//2, HEIGHT * 0.15))
         screen.blit(title, title_rect)
         
         # Draw buttons
@@ -134,6 +200,7 @@ def load_piece_images(image_path):
         piece_images[f'w_{piece}'] = pygame.image.load(os.path.join(image_path, f"w_{piece}_png_1024px.png"))
         piece_images[f'b_{piece}'] = pygame.image.load(os.path.join(image_path, f"b_{piece}_png_1024px.png"))
     
+    # Scale pieces to fit the square size
     for key in piece_images:
         piece_images[key] = pygame.transform.scale(piece_images[key], (SQUARE_SIZE, SQUARE_SIZE))
     
@@ -178,15 +245,17 @@ def get_square_under_mouse(pos):
     y = y - BOARD_OFFSET_Y  # Adjust for menu
     if y < 0:  # Click was in the menu area
         return None
-    col = x // SQUARE_SIZE
-    row = y // SQUARE_SIZE
+    col = int(x // SQUARE_SIZE)  # Ensure integer division
+    row = int(y // SQUARE_SIZE)  # Ensure integer division
     if 0 <= row < 8 and 0 <= col < 8:  # Make sure click is within board
-        return chess.square(col, 7 - row)
+        return int(chess.square(col, 7 - row))  # Ensure integer return
     return None
 
 # Display a message at the center of the screen
 def display_message(screen, message, duration=3000):
-    font = pygame.font.SysFont("arial", 36)
+    # Calculate font size based on screen height
+    font_size = int(HEIGHT * 0.04)  # Font size is 4% of screen height
+    font = pygame.font.SysFont("arial", font_size)
     text = font.render(message, True, (255, 0, 0))
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
     
